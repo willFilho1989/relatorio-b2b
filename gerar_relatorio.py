@@ -65,7 +65,7 @@ def parse_number(value: object) -> float:
         return 0.0
 
 
-def create_first_pivot_table() -> None:
+def create_pivot_tables() -> None:
     import win32com.client  # type: ignore
 
     excel = win32com.client.DispatchEx("Excel.Application")
@@ -83,9 +83,17 @@ def create_first_pivot_table() -> None:
         pivot_sheet = workbook.Worksheets.Add()
         pivot_sheet.Name = "Dinamicas"
 
-        base_sheet = workbook.Worksheets("B2B")
         xl_up = -4162
         xl_to_left = -4159
+        xl_row_field = 1
+        xl_count = -4112
+        xl_sum = -4157
+        xl_average = -4106
+        xl_tabular = 1
+        xl_compact = 0
+        xl_left = -4131
+
+        base_sheet = workbook.Worksheets("B2B")
         last_row = base_sheet.Cells(base_sheet.Rows.Count, 1).End(xl_up).Row
         last_col = base_sheet.Cells(1, base_sheet.Columns.Count).End(xl_to_left).Column
         source_data = f"'B2B'!R1C1:R{last_row}C{last_col}"
@@ -95,27 +103,17 @@ def create_first_pivot_table() -> None:
             TableDestination="'Dinamicas'!R1C1", TableName="ResumoStatus"
         )
 
-        xl_row_field = 1
         pivot_table.PivotFields("UF").Orientation = xl_row_field
         pivot_table.PivotFields("UF").Position = 1
         pivot_table.PivotFields("STATUS").Orientation = xl_row_field
         pivot_table.PivotFields("STATUS").Position = 2
 
-        xl_count = -4112
-        xl_sum = -4157
-        xl_average = -4106
-        campo_total_id = pivot_table.AddDataField(
-            pivot_table.PivotFields("ID"), "TOTAL_ID", xl_count
-        )
-        campo_valor_total = pivot_table.AddDataField(
-            pivot_table.PivotFields("CUSTO TOTAL"), "VALOR TOTAL", xl_sum
-        )
-        campo_media = pivot_table.AddDataField(
-            pivot_table.PivotFields("CUSTO TOTAL"), "MÉDIA", xl_average
-        )
+        pivot_table.AddDataField(pivot_table.PivotFields("ID"), "TOTAL_ID", xl_count)
+        pivot_table.AddDataField(pivot_table.PivotFields("CUSTO TOTAL"), "VALOR TOTAL", xl_sum)
+        pivot_table.AddDataField(pivot_table.PivotFields("CUSTO TOTAL"), "MÉDIA", xl_average)
 
         pivot_table.TableStyle2 = "PivotStyleMedium9"
-        pivot_table.RowAxisLayout(0)
+        pivot_table.RowAxisLayout(xl_compact)
         pivot_table.CompactLayoutRowHeader = "STATUS"
         pivot_table.PivotFields("UF").LayoutSubtotalLocation = 1
 
@@ -147,15 +145,74 @@ def create_first_pivot_table() -> None:
                     pivot_sheet.Cells(row_idx, last_table_col),
                 ).Interior.ColorIndex = 35
 
-        pivot_sheet.Columns("A:D").AutoFit()
-        if pivot_sheet.Columns("A").ColumnWidth < 18:
-            pivot_sheet.Columns("A").ColumnWidth = 18
-        if pivot_sheet.Columns("B").ColumnWidth < 10:
-            pivot_sheet.Columns("B").ColumnWidth = 10
-        if pivot_sheet.Columns("C").ColumnWidth < 15:
-            pivot_sheet.Columns("C").ColumnWidth = 15
-        if pivot_sheet.Columns("D").ColumnWidth < 12:
-            pivot_sheet.Columns("D").ColumnWidth = 12
+        pivot_table.TableRange1.HorizontalAlignment = xl_left
+
+        first_end_row = pivot_table.TableRange2.Row + pivot_table.TableRange2.Rows.Count - 1
+        servico_start_row = first_end_row + 2
+
+        servico_sheet = workbook.Worksheets("Serviços")
+        servico_last_row = servico_sheet.Cells(servico_sheet.Rows.Count, 1).End(xl_up).Row
+        servico_last_col = servico_sheet.UsedRange.Columns.Count
+        servico_source = f"'Serviços'!R1C1:R{servico_last_row}C{servico_last_col}"
+
+        servico_cache = workbook.PivotCaches().Create(SourceType=1, SourceData=servico_source)
+        servico_pivot = servico_cache.CreatePivotTable(
+            TableDestination=f"'Dinamicas'!R{servico_start_row}C1", TableName="ResumoServicos"
+        )
+        servico_pivot.PivotFields("CODIGO").Orientation = xl_row_field
+        servico_pivot.PivotFields("CODIGO").Position = 1
+        servico_pivot.PivotFields("DESCRICAO").Orientation = xl_row_field
+        servico_pivot.PivotFields("DESCRICAO").Position = 2
+        servico_pivot.PivotFields("CODIGO").Subtotals = (False,) * 12
+        servico_pivot.PivotFields("DESCRICAO").Subtotals = (False,) * 12
+        servico_pivot.AddDataField(
+            servico_pivot.PivotFields(servico_last_col), "Contagem Distinta de ID", xl_sum
+        )
+        servico_pivot.RowAxisLayout(xl_tabular)
+        servico_pivot.TableStyle2 = "PivotStyleMedium9"
+        servico_pivot.TableRange1.HorizontalAlignment = xl_left
+        servico_range = servico_pivot.TableRange1
+        servico_count_col = servico_range.Column + servico_range.Columns.Count - 1
+        pivot_sheet.Range(
+            pivot_sheet.Cells(servico_range.Row + 1, servico_count_col),
+            pivot_sheet.Cells(servico_range.Row + servico_range.Rows.Count - 1, servico_count_col),
+        ).NumberFormat = "0"
+
+        servico_end_row = servico_pivot.TableRange2.Row + servico_pivot.TableRange2.Rows.Count - 1
+        materiais_start_row = servico_end_row + 2
+
+        materiais_sheet = workbook.Worksheets("Materiais")
+        materiais_last_row = materiais_sheet.Cells(materiais_sheet.Rows.Count, 1).End(xl_up).Row
+        materiais_last_col = materiais_sheet.UsedRange.Columns.Count
+        materiais_source = f"'Materiais'!R1C1:R{materiais_last_row}C{materiais_last_col}"
+
+        materiais_cache = workbook.PivotCaches().Create(SourceType=1, SourceData=materiais_source)
+        materiais_pivot = materiais_cache.CreatePivotTable(
+            TableDestination=f"'Dinamicas'!R{materiais_start_row}C1", TableName="ResumoMateriais"
+        )
+        materiais_pivot.PivotFields("CODIGO").Orientation = xl_row_field
+        materiais_pivot.PivotFields("CODIGO").Position = 1
+        materiais_pivot.PivotFields("MATERIAL").Orientation = xl_row_field
+        materiais_pivot.PivotFields("MATERIAL").Position = 2
+        materiais_pivot.PivotFields("CODIGO").Subtotals = (False,) * 12
+        materiais_pivot.PivotFields("MATERIAL").Subtotals = (False,) * 12
+        materiais_pivot.AddDataField(
+            materiais_pivot.PivotFields(materiais_last_col), "Contagem Distinta de ID", xl_sum
+        )
+        materiais_pivot.RowAxisLayout(xl_tabular)
+        materiais_pivot.TableStyle2 = "PivotStyleMedium9"
+        materiais_pivot.TableRange1.HorizontalAlignment = xl_left
+        materiais_range = materiais_pivot.TableRange1
+        materiais_count_col = materiais_range.Column + materiais_range.Columns.Count - 1
+        pivot_sheet.Range(
+            pivot_sheet.Cells(materiais_range.Row + 1, materiais_count_col),
+            pivot_sheet.Cells(
+                materiais_range.Row + materiais_range.Rows.Count - 1, materiais_count_col
+            ),
+        ).NumberFormat = "0"
+
+        pivot_sheet.UsedRange.HorizontalAlignment = xl_left
+        pivot_sheet.Columns("A:E").AutoFit()
 
         workbook.Save()
         workbook.Close(SaveChanges=True)
@@ -208,6 +265,10 @@ def main() -> None:
 
     servico["CUSTO TOTAL"] = servico["CUSTO TOTAL NUM"].astype(float)
     servico = servico.drop(columns=["CUSTO TOTAL NUM"])
+    servico["ID_DISTINTO"] = (~servico.duplicated(subset=["ID", "CODIGO", "DESCRICAO"])).astype(int)
+    materiais_filtrado["ID_DISTINTO"] = (
+        ~materiais_filtrado.duplicated(subset=["ID", "CODIGO", "MATERIAL"])
+    ).astype(int)
 
     with pd.ExcelWriter(OUTPUT_PATH, engine="openpyxl") as writer:
         eventos_filtrado.to_excel(writer, index=False, sheet_name="B2B")
@@ -224,8 +285,14 @@ def main() -> None:
                 continue
             for row_idx in range(2, sheet.max_row + 1):
                 sheet.cell(row=row_idx, column=custo_col_idx).number_format = "#,##0.00"
+        for sheet_name in ["Serviços", "Materiais"]:
+            sheet = writer.book[sheet_name]
+            for idx, cell in enumerate(sheet[1], start=1):
+                if cell.value == "ID_DISTINTO":
+                    sheet.column_dimensions[sheet.cell(row=1, column=idx).column_letter].hidden = True
+                    break
 
-    create_first_pivot_table()
+    create_pivot_tables()
     print(f"Relatório gerado em: {OUTPUT_PATH}")
 
 
