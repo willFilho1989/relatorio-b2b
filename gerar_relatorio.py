@@ -45,7 +45,7 @@ def normalize_id(series: pd.Series) -> pd.Series:
 
 
 def cleanup_generated_reports() -> None:
-    for report_path in Path(__file__).resolve().parent.glob("relatorio_b2b_atualizado_*.xlsx"):
+    for report_path in APP_DIR.glob("relatorio_b2b_atualizado_*.xlsx"):
         try:
             report_path.unlink()
         except OSError:
