@@ -154,6 +154,16 @@ def create_pivot_tables() -> None:
         pt.RowAxisLayout(0)
         pt.CompactLayoutRowHeader = "STATUS"
         pt.PivotFields("UF").LayoutSubtotalLocation = 1
+        
+        # Fixar ordem dos status
+        status_order = ["Cancelado", "Eps/Provisorio", "Supervisor Cidade", "Concluido", "Faturado"]
+        status_field = pt.PivotFields("STATUS")
+        for idx, status_value in enumerate(status_order):
+            try:
+                status_field.PivotItems(status_value).Position = idx + 1
+            except:
+                pass
+        
         style_pivot(pt)
         b2b_range = pt.TableRange1
         pivot_sheet.Range(
