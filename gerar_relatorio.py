@@ -8,7 +8,24 @@ import pandas as pd
 
 APP_DIR = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", APP_DIR))
-BASE_DIR = RESOURCE_DIR / "bases"
+
+
+def resolve_base_dir() -> Path:
+    candidates = [
+        APP_DIR / "bases",
+        APP_DIR.parent / "bases",
+        Path.cwd() / "bases",
+        RESOURCE_DIR / "bases",
+    ]
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_dir():
+            return candidate
+    raise FileNotFoundError(
+        "Pasta 'bases' não encontrada. Coloque-a ao lado do executável ou no diretório atual."
+    )
+
+
+BASE_DIR = resolve_base_dir()
 EVENTOS_PATH = BASE_DIR / "Eventos.xls"
 QUANTIFICACAO_PATH = BASE_DIR / "Quantificacao.xls"
 MATERIAIS_PATH = BASE_DIR / "Materiais.xls"
